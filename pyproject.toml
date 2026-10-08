@@ -1,0 +1,14 @@
+[tool.poetry]
+name = "houck-lab-qua"
+version = "0.1.0"
+description = "Code for running measurements with the OPX"
+authors = ["FluxTeam <deleonlab@princeton.edu>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = ">=3.8,<3.13"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

@@ -1,0 +1,904 @@
+"""
+Physics-informed CRAB/OC optimizer for 1Q transmon X90/Y90 gates.
+
+This is a self-contained replacement for the previous arbitrary 4K CRAB search.
+It keeps RB as the only optimizer/checkpoint experiment: no leakage RB and no
+purity RB are run here.
+
+Main idea
+---------
+Instead of allowing independent arbitrary I/Q corrections for X90 and Y90, this
+optimizes a low-dimensional, interpretable correction basis:
+
+    x[0]  amplitude correction
+    x[1]  DRAG / derivative-quadrature correction
+    x[2]  constant pulse-axis phase correction
+    x[3]  intra-pulse phase ramp, detuning-like
+    x[4:] small windowed complex tones near |alpha| ~ 100 MHz
+
+The Y90 correction is generated as a 90-degree I/Q rotation of the X90
+correction, which greatly reduces the dimension and makes the search less able
+to exploit fast-RB noise.
+
+Assumptions
+-----------
+- Existing config contains X90_wf_<q>, X90_wf_der_<q>, Y90_wf_<q>,
+  Y90_wf_der_<q> waveforms, matching your original conventions.
+- RB1Q_CRAB accepts a supplied config and has .gate_fidelity(), .data,
+  .iname, .fname attributes as in your previous script.
+- The OPX sample clock is 1 ns/sample for the generated arbitrary waveforms.
+
+Things to tune first
+--------------------
+- QUBIT
+- LEAK_FREQS_MHZ
+- FAST_CIRCUIT_DEPTHS
+- NUM_CIRCUITS_FAST / SHOTS_FAST
+- Bounds in decode_physical_params()
+
+No leakage RB or purity RB is called anywhere in this file.
+"""
+
+import os
+import shutil
+import datetime
+import random
+import sys
+from pathlib import Path
+
+import numpy as np
+import matplotlib.pyplot as plt
+import cma
+from scipy.optimize import curve_fit
+from qm import QuantumMachinesManager  # kept for compatibility/debug use
+from qm.qua import *  # noqa: F401,F403; kept because your lab scripts often expect QUA symbols
+from qualang_tools.units import unit
+
+# Add LabCode to path: Gates → Experiments → LabCode → repo_root
+repo_root = Path(__file__).parent.parent.parent.parent
+sys.path.insert(0, str(repo_root))
+
+from LabCode.Config.make_meta_dict import make_meta_dict
+from LabCode.Config.config_helpers import meta_dict_to_config_1Q
+from LabCode.Experiments.Readout_Cal.m_single_shot_1Q import SingleShot1Q
+from LabCode.Experiments.RB.m_RB_1Q_CRAB import RB1Q_CRAB
+
+u = unit(coerce_to_integer=True)
+
+
+# =============================================================================
+# User-facing knobs
+# =============================================================================
+
+QUBIT = "q6"
+
+# Fast objective remains RB-only. More circuits make the surrogate less noisy;
+# this is often a better use of time than more waveform parameters.
+FAST_CIRCUIT_DEPTHS = [64, 256, 1000, 3000]
+SHOTS_FAST = 100
+NUM_CIRCUITS_FAST = 400
+
+# Long RB checkpoints are RB-only. No leakage/purity RB.
+CHECKPOINT_EVERY = 10
+RUN_ZERO_LONG_RB_AT_CHECKPOINT = (
+    True  # compare xbest against current zero pulse, helps detect drift
+)
+
+SHOTS_LONG = 100
+NUM_CIRCUITS_LONG = 100
+LONG_RB_LENGTHS = [2, 16, 64, 256, 500, 1000, 1500, 2000, 2500, 3000, 5000, 7000]
+
+# Target |alpha| ~ 100 MHz. Keep this small at first.
+LEAK_FREQS_MHZ = np.array([70, 90, 100, 110, 130], dtype=float)
+
+# Use a fixed seed inside the fast objective so CMA is not just choosing lucky
+# random RB sequences. Long RB checkpoints use separate/no seed by default.
+USE_FIXED_TRAIN_SEED = True
+RB_TRAIN_SEED = 12345
+
+# Robust RB fast objective.
+# "fixed_floor_log" is hardest to game but assumes the asymptote is near 0.5.
+# "bounded_curve_fit" is more flexible but can be noisier with only a few depths.
+FAST_FIT_MODE = "fixed_floor_log"  # or "bounded_curve_fit"
+RB_FLOOR = 0.5
+
+# CMA settings for the physical basis. n_params = 4 + 2*len(LEAK_FREQS_MHZ).
+CMA_SIGMA0 = 0.5
+CMA_MAXITER = 120
+CMA_TOLFUN = 3e-5
+CMA_TOLX = 1e-4
+
+# Single-shot readout calibration at start.
+RUN_SS_CAL = True
+SS_SHOTS = 1000
+
+
+# =============================================================================
+# Config mutation: add optimized-control versions of X90/mX90/Y90/mY90
+# =============================================================================
+
+
+def add_x90_oc_to_config(
+    config, q_name, crab_wf_I_X, crab_wf_Q_X, crab_wf_I_Y, crab_wf_Q_Y
+):
+    """
+    Add X90_OC, mX90_OC, Y90_OC, mY90_OC operations to q_name in the config.
+
+    Input correction waveforms are physical-channel corrections:
+      X90_OC : X90_I + crab_I_X,  X90_Q + crab_Q_X
+      Y90_OC : Y90_I + crab_I_Y,  Y90_Q + crab_Q_Y
+
+    The negative gates are exact negatives of the optimized positive gates.
+    """
+    # X90: I <- X90_wf_, Q <- X90_wf_der_
+    x90_I = np.asarray(config["waveforms"]["X90_wf_" + q_name]["samples"], dtype=float)
+    x90_Q = np.asarray(
+        config["waveforms"]["X90_wf_der_" + q_name]["samples"], dtype=float
+    )
+
+    # Y90 convention in your config: I <- Y90_wf_der_, Q <- Y90_wf_
+    y90_phyI = np.asarray(
+        config["waveforms"]["Y90_wf_der_" + q_name]["samples"], dtype=float
+    )
+    y90_phyQ = np.asarray(
+        config["waveforms"]["Y90_wf_" + q_name]["samples"], dtype=float
+    )
+
+    def _fit_to_headroom(corr, headroom, channel):
+        corr = np.asarray(corr, dtype=float)
+        peak = float(np.max(np.abs(corr))) if len(corr) else 0.0
+        if peak > headroom and peak > 0:
+            scale = headroom / peak
+            print(
+                f"  WARNING: correction {channel} peak={peak:.4f} V > "
+                f"headroom={headroom:.4f} V; rescaling by {scale:.4f}."
+            )
+            corr = corr * scale
+        return corr
+
+    crab_I_X = _fit_to_headroom(crab_wf_I_X, 0.5 - np.max(np.abs(x90_I)), "I_X")
+    crab_Q_X = _fit_to_headroom(crab_wf_Q_X, 0.5 - np.max(np.abs(x90_Q)), "Q_X")
+    crab_I_Y = _fit_to_headroom(crab_wf_I_Y, 0.5 - np.max(np.abs(y90_phyI)), "I_Y")
+    crab_Q_Y = _fit_to_headroom(crab_wf_Q_Y, 0.5 - np.max(np.abs(y90_phyQ)), "Q_Y")
+
+    x90_oc_phyI = x90_I + crab_I_X
+    x90_oc_phyQ = x90_Q + crab_Q_X
+    y90_oc_phyI = y90_phyI + crab_I_Y
+    y90_oc_phyQ = y90_phyQ + crab_Q_Y
+
+    # Store waveforms, preserving your original naming convention.
+    config["waveforms"]["X90_OC_wf_" + q_name] = {
+        "type": "arbitrary",
+        "samples": x90_oc_phyI.tolist(),
+    }
+    config["waveforms"]["X90_OC_wf_der_" + q_name] = {
+        "type": "arbitrary",
+        "samples": x90_oc_phyQ.tolist(),
+    }
+    config["waveforms"]["mX90_OC_wf_" + q_name] = {
+        "type": "arbitrary",
+        "samples": (-x90_oc_phyI).tolist(),
+    }
+    config["waveforms"]["mX90_OC_wf_der_" + q_name] = {
+        "type": "arbitrary",
+        "samples": (-x90_oc_phyQ).tolist(),
+    }
+
+    config["waveforms"]["Y90_OC_wf_der_" + q_name] = {
+        "type": "arbitrary",
+        "samples": y90_oc_phyI.tolist(),
+    }
+    config["waveforms"]["Y90_OC_wf_" + q_name] = {
+        "type": "arbitrary",
+        "samples": y90_oc_phyQ.tolist(),
+    }
+    config["waveforms"]["mY90_OC_wf_der_" + q_name] = {
+        "type": "arbitrary",
+        "samples": (-y90_oc_phyI).tolist(),
+    }
+    config["waveforms"]["mY90_OC_wf_" + q_name] = {
+        "type": "arbitrary",
+        "samples": (-y90_oc_phyQ).tolist(),
+    }
+
+    def _add_pulse(name, wf_I_key, wf_Q_key):
+        config["pulses"][name] = {
+            "operation": "control",
+            "length": len(config["waveforms"][wf_I_key]["samples"]),
+            "waveforms": {"I": wf_I_key, "Q": wf_Q_key},
+            "digital_marker": "trig",
+        }
+
+    _add_pulse(
+        "X90_OC_pulse_" + q_name, "X90_OC_wf_" + q_name, "X90_OC_wf_der_" + q_name
+    )
+    _add_pulse(
+        "mX90_OC_pulse_" + q_name, "mX90_OC_wf_" + q_name, "mX90_OC_wf_der_" + q_name
+    )
+    _add_pulse(
+        "Y90_OC_pulse_" + q_name, "Y90_OC_wf_der_" + q_name, "Y90_OC_wf_" + q_name
+    )
+    _add_pulse(
+        "mY90_OC_pulse_" + q_name, "mY90_OC_wf_der_" + q_name, "mY90_OC_wf_" + q_name
+    )
+
+    config["elements"][q_name]["operations"]["X90_OC"] = "X90_OC_pulse_" + q_name
+    config["elements"][q_name]["operations"]["mX90_OC"] = "mX90_OC_pulse_" + q_name
+    config["elements"][q_name]["operations"]["Y90_OC"] = "Y90_OC_pulse_" + q_name
+    config["elements"][q_name]["operations"]["mY90_OC"] = "mY90_OC_pulse_" + q_name
+
+    return config
+
+
+# =============================================================================
+# Physics-informed waveform basis
+# =============================================================================
+
+
+def get_base_x90_waveforms(config, q_name):
+    """Return physical I/Q arrays for the base X90 pulse."""
+    x90_I = np.asarray(config["waveforms"]["X90_wf_" + q_name]["samples"], dtype=float)
+    x90_Q = np.asarray(
+        config["waveforms"]["X90_wf_der_" + q_name]["samples"], dtype=float
+    )
+    return x90_I, x90_Q
+
+
+def decode_physical_params(x, x90_amp, leak_freqs_mhz):
+    """
+    Decode unconstrained CMA vector into bounded physical parameters.
+
+    Bounds are deliberately conservative. Increase only if you first see that
+    good candidates are saturating tanh at +/-1.
+    """
+    x = np.asarray(x, dtype=float)
+    n_required = 4 + 2 * len(leak_freqs_mhz)
+    if len(x) != n_required:
+        raise ValueError(f"Expected x length {n_required}, got {len(x)}")
+
+    # Coherent/low-dimensional corrections.
+    amp_frac_bound = 0.030  # +/-3% amplitude scale
+    drag_frac_bound = 0.50  # +/-50% extra scaling of existing derivative quadrature
+    phase_bound = 0.060  # constant small pulse-axis phase, rad-ish
+    phase_ramp_bound = 0.080  # odd phase across pulse, rad-ish, detuning/Stark-like
+
+    # Leakage tones are small additive voltages. For x90_amp ~ 0.006, this is ~75 uV.
+    # If nothing moves and all tone params saturate, try x90_amp/50.
+    tone_amp_bound = x90_amp / 80.0
+
+    amp_frac = amp_frac_bound * np.tanh(x[0])
+    drag_frac = drag_frac_bound * np.tanh(x[1])
+    phase_const = phase_bound * np.tanh(x[2])
+    phase_ramp = phase_ramp_bound * np.tanh(x[3])
+
+    tone_coeffs = []
+    idx = 4
+    for f_mhz in leak_freqs_mhz:
+        c_re = tone_amp_bound * np.tanh(x[idx])
+        c_im = tone_amp_bound * np.tanh(x[idx + 1])
+        tone_coeffs.append((float(f_mhz), float(c_re), float(c_im)))
+        idx += 2
+
+    return {
+        "amp_frac": float(amp_frac),
+        "drag_frac": float(drag_frac),
+        "phase_const": float(phase_const),
+        "phase_ramp": float(phase_ramp),
+        "tone_coeffs": tone_coeffs,
+    }
+
+
+def make_physical_shared_xy_corrections(
+    x, base_config, q_name, x90_amp, leak_freqs_mhz
+):
+    """
+    Build correction waveforms from physically motivated modes.
+
+    Returns physical-channel corrections:
+      crab_wf_I_X, crab_wf_Q_X, crab_wf_I_Y, crab_wf_Q_Y
+
+    Y correction is generated from X correction by +90 degree rotation:
+      delta_z_Y = i * delta_z_X, so I_Y=-Q_X and Q_Y=I_X.
+    If your Y convention is opposite, flip those two signs below.
+    """
+    x90_I, x90_Q = get_base_x90_waveforms(base_config, q_name)
+    n = len(x90_I)
+    if n != len(x90_Q):
+        raise ValueError("X90 I/Q waveforms have different lengths")
+
+    t = np.arange(n, dtype=float)  # ns samples
+    tc = t - 0.5 * (n - 1)
+    tc_norm = tc / np.max(np.abs(tc)) if n > 1 else tc
+
+    # Window tones to avoid jumps at pulse boundaries.
+    window = np.sin(np.pi * t / (n - 1)) ** 2 if n > 1 else np.ones(n)
+
+    params = decode_physical_params(x, x90_amp, leak_freqs_mhz)
+    amp_frac = params["amp_frac"]
+    drag_frac = params["drag_frac"]
+    phase_const = params["phase_const"]
+    phase_ramp = params["phase_ramp"]
+
+    corr_I = np.zeros(n, dtype=float)
+    corr_Q = np.zeros(n, dtype=float)
+
+    # 1) Amplitude/angle correction.
+    corr_I += amp_frac * x90_I
+    corr_Q += amp_frac * x90_Q
+
+    # 2) DRAG/quadrature correction. Existing derivative quadrature is x90_Q.
+    corr_Q += drag_frac * x90_Q
+
+    # 3) Constant pulse-axis phase rotation. For z = I+iQ, dz ≈ i*phi*z.
+    corr_I += -phase_const * x90_Q
+    corr_Q += +phase_const * x90_I
+
+    # 4) Intra-pulse phase ramp, detuning/Stark-like. Odd around pulse center.
+    corr_I += -phase_ramp * tc_norm * x90_Q
+    corr_Q += +phase_ramp * tc_norm * x90_I
+
+    # 5) Windowed complex leakage-scale tones.
+    for f_mhz, c_re, c_im in params["tone_coeffs"]:
+        phase = 2 * np.pi * f_mhz * t / 1000.0  # f in MHz, t in ns
+        tone = window * np.exp(1j * phase)
+        corr = (c_re + 1j * c_im) * tone
+        corr_I += np.real(corr)
+        corr_Q += np.imag(corr)
+
+    crab_wf_I_X = corr_I
+    crab_wf_Q_X = corr_Q
+
+    # Shared XY: Y correction is rotated by +90 degrees in IQ plane.
+    crab_wf_I_Y = -corr_Q
+    crab_wf_Q_Y = +corr_I
+
+    return (
+        crab_wf_I_X.tolist(),
+        crab_wf_Q_X.tolist(),
+        crab_wf_I_Y.tolist(),
+        crab_wf_Q_Y.tolist(),
+    )
+
+
+def print_physical_params(label, x, x90_amp, leak_freqs_mhz):
+    p = decode_physical_params(x, x90_amp, leak_freqs_mhz)
+    print(f"\n[{label}] decoded physical parameters:")
+    print(f"  amp_frac    = {p['amp_frac']:+.5e}")
+    print(f"  drag_frac   = {p['drag_frac']:+.5e}")
+    print(f"  phase_const = {p['phase_const']:+.5e}")
+    print(f"  phase_ramp  = {p['phase_ramp']:+.5e}")
+    print("  leakage-tone coeffs [MHz, Re[V], Im[V]]:")
+    for f_mhz, c_re, c_im in p["tone_coeffs"]:
+        print(f"    {f_mhz:7.1f}  {c_re:+.5e}  {c_im:+.5e}")
+
+
+# =============================================================================
+# RB wrappers
+# =============================================================================
+
+
+def set_rb_seed(seed):
+    """Try to make RB sequence generation repeatable, if RB1Q_CRAB uses these RNGs."""
+    if seed is not None:
+        np.random.seed(seed)
+        random.seed(seed)
+
+
+def extract_return_prob_array(rb, n_expected):
+    if hasattr(rb, "data") and isinstance(rb.data, dict) and "return_prob" in rb.data:
+        arr = rb.data["return_prob"]
+        if not isinstance(arr, (list, tuple, np.ndarray)):
+            arr = [arr]
+        arr = np.asarray(arr, dtype=float)
+    else:
+        print("  WARNING: RB object has no data['return_prob']; using 0.5 fallback.")
+        arr = np.full(n_expected, 0.5, dtype=float)
+    return arr
+
+
+def fixed_floor_log_p_estimate(depths, probs, floor=0.5):
+    """
+    Stable p estimate from log(P-floor) = log(A) + depth*log(p).
+
+    This is deliberately restrictive. It avoids a free SPAM/asymptote parameter,
+    which was likely allowing the fast objective to produce false improvements.
+    """
+    depths = np.asarray(depths, dtype=float)
+    probs = np.asarray(probs, dtype=float)
+    y = probs - floor
+
+    if len(depths) != len(probs):
+        print(f"  WARNING: depth/prob length mismatch: {len(depths)} vs {len(probs)}")
+        return 0.0
+    if np.any(~np.isfinite(y)) or np.any(y <= 0.005):
+        return 0.0
+
+    try:
+        slope, _ = np.polyfit(depths, np.log(y), 1)
+        p = float(np.exp(slope))
+        if not np.isfinite(p) or p < 0.90 or p > 1.0002:
+            return 0.0
+        return min(p, 1.0)
+    except Exception as exc:
+        print(f"  WARNING: fixed_floor_log_p_estimate failed: {exc}")
+        return 0.0
+
+
+def bounded_curve_fit_p_estimate(depths, probs):
+    """
+    Bounded 3-parameter RB fit. More flexible than fixed-floor log fit, but less
+    robust with only a few depths.
+    """
+    depths = np.asarray(depths, dtype=float)
+    probs = np.asarray(probs, dtype=float)
+
+    def fitRB(x, a, p, b):
+        return a * p**x + b
+
+    try:
+        popt, _ = curve_fit(
+            fitRB,
+            depths,
+            probs,
+            p0=[0.4, 0.999, 0.5],
+            bounds=([0.02, 0.90, 0.35], [0.95, 1.0002, 0.65]),
+            maxfev=5000,
+        )
+        p = float(popt[1])
+        if not np.isfinite(p):
+            return 0.0
+        return min(p, 1.0)
+    except Exception as exc:
+        print(f"  WARNING: bounded_curve_fit_p_estimate failed: {exc}")
+        return 0.0
+
+
+def estimate_fast_metric(depths, probs, mode=FAST_FIT_MODE, floor=RB_FLOOR):
+    if len(depths) == 1:
+        return float(np.mean(probs))
+    if mode == "fixed_floor_log":
+        return fixed_floor_log_p_estimate(depths, probs, floor=floor)
+    if mode == "bounded_curve_fit":
+        return bounded_curve_fit_p_estimate(depths, probs)
+    raise ValueError(f"Unknown FAST_FIT_MODE: {mode}")
+
+
+def build_config_with_physical_x(x, meta_dict, q_name, x90_amp, leak_freqs_mhz):
+    base_config = meta_dict_to_config_1Q(meta_dict)
+    wfs = make_physical_shared_xy_corrections(
+        x=x,
+        base_config=base_config,
+        q_name=q_name,
+        x90_amp=x90_amp,
+        leak_freqs_mhz=leak_freqs_mhz,
+    )
+    return add_x90_oc_to_config(base_config, q_name, *wfs), wfs
+
+
+def run_rb_fast_feedback_physical_x(
+    x,
+    qubit,
+    x90_amp,
+    leak_freqs_mhz,
+    meta_dict,
+    fast_circuit_depths,
+    shots,
+    num_circuits,
+    calib_params,
+    outer_folder,
+    iteration_label,
+    rb_seed=None,
+):
+    config, _ = build_config_with_physical_x(
+        x, meta_dict, qubit, x90_amp, leak_freqs_mhz
+    )
+
+    set_rb_seed(rb_seed)
+
+    rb = RB1Q_CRAB(
+        qubit,
+        fast_circuit_depths,
+        num_circuits,
+        shots,
+        calib_params,
+        meta_dict=meta_dict,
+        outer_folder=outer_folder,
+        path=qubit,
+        suffix=f"RB_fast_{iteration_label}",
+        config=config,
+    )
+
+    return_prob_array = extract_return_prob_array(rb, len(fast_circuit_depths))
+    feedback_metric = estimate_fast_metric(fast_circuit_depths, return_prob_array)
+
+    # Remove high-volume fast files.
+    for attr in ["iname", "fname"]:
+        if hasattr(rb, attr):
+            f = getattr(rb, attr)
+            if f and os.path.isfile(f):
+                os.remove(f)
+
+    return feedback_metric, return_prob_array
+
+
+def run_rb_fidelity_physical_x(
+    x,
+    qubit,
+    x90_amp,
+    leak_freqs_mhz,
+    meta_dict,
+    experiment_dict,
+    calib_params,
+    outer_folder,
+    iteration_label,
+    crab_dir=None,
+    rb_seed=None,
+):
+    """Run full/long RB for a physical-basis parameter vector x."""
+    config, _ = build_config_with_physical_x(
+        x, meta_dict, qubit, x90_amp, leak_freqs_mhz
+    )
+
+    set_rb_seed(rb_seed)
+
+    rb = RB1Q_CRAB(
+        qubit,
+        experiment_dict["RB"]["circuit_lengths"],
+        experiment_dict["RB"]["num_circuits"],
+        experiment_dict["RB"]["shots"],
+        calib_params,
+        meta_dict=meta_dict,
+        outer_folder=outer_folder,
+        path=qubit,
+        suffix=f"RB_OC_{iteration_label}",
+        config=config,
+    )
+
+    # Move the figure into the CRAB run dir if available.
+    if (
+        crab_dir is not None
+        and hasattr(rb, "iname")
+        and rb.iname
+        and os.path.isfile(rb.iname)
+    ):
+        shutil.move(rb.iname, os.path.join(crab_dir, os.path.basename(rb.iname)))
+
+    return rb.gate_fidelity(), crab_dir if crab_dir is not None else os.path.dirname(
+        getattr(rb, "iname", outer_folder)
+    )
+
+
+# =============================================================================
+# CMA evaluator
+# =============================================================================
+
+_eval_counter = [0]
+
+
+def make_evaluate_fast_physical(
+    qubit,
+    x90_amp,
+    leak_freqs_mhz,
+    meta_dict,
+    fast_circuit_depths,
+    shots,
+    num_circuits,
+    calib_params,
+    outer_folder,
+):
+    n_cma_params = 4 + 2 * len(leak_freqs_mhz)
+    train_seed = RB_TRAIN_SEED if USE_FIXED_TRAIN_SEED else None
+
+    def evaluate(x):
+        _eval_counter[0] += 1
+        label = f"cma_iter_{_eval_counter[0]:04d}"
+
+        feedback_metric, probs = run_rb_fast_feedback_physical_x(
+            x=x,
+            qubit=qubit,
+            x90_amp=x90_amp,
+            leak_freqs_mhz=leak_freqs_mhz,
+            meta_dict=meta_dict,
+            fast_circuit_depths=fast_circuit_depths,
+            shots=shots,
+            num_circuits=num_circuits,
+            calib_params=calib_params,
+            outer_folder=outer_folder,
+            iteration_label=label,
+            rb_seed=train_seed,
+        )
+
+        cost = 1.0 - feedback_metric
+        probs_str = ", ".join([f"{p:.4f}" for p in probs])
+        print(
+            f"[{label}]  decay_p={feedback_metric:.8f}  cost={cost:.8e}  "
+            f"P(depths)=[{probs_str}]"
+        )
+        return cost
+
+    return evaluate, n_cma_params
+
+
+# =============================================================================
+# Main experiment
+# =============================================================================
+
+if __name__ == "__main__":
+    qubit = QUBIT
+    fast_circuit_depths = FAST_CIRCUIT_DEPTHS
+    leak_freqs_mhz = LEAK_FREQS_MHZ
+    n_cma_params = 4 + 2 * len(leak_freqs_mhz)
+
+    # Load qubit parameters.
+    meta_dict = make_meta_dict(qubit)[qubit]
+    tg = meta_dict["X90"]["length"]
+    x90_amp = meta_dict["X90"]["amp"]
+    outer_folder = meta_dict["global_params"]["outer_folder"]
+    os.makedirs(outer_folder, exist_ok=True)
+
+    today = datetime.date.today().strftime("%Y_%m_%d")
+    crab_dir = os.path.join(
+        outer_folder, qubit, f"{qubit}_{today}", "crab_cma_physical"
+    )
+    os.makedirs(crab_dir, exist_ok=True)
+
+    run_timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    crab_run_dir = os.path.join(crab_dir, run_timestamp)
+    os.makedirs(crab_run_dir, exist_ok=True)
+
+    print(f"Saving physical-basis CRAB outputs to: {crab_run_dir}")
+    print(f"Qubit: {qubit} | tg={tg} ns | x90_amp={x90_amp} V")
+    print(
+        f"Physical basis: n_params={n_cma_params}, leak_freqs_mhz={leak_freqs_mhz.tolist()}"
+    )
+    print(
+        f"Fast RB depths: {fast_circuit_depths}, shots={SHOTS_FAST}, circuits={NUM_CIRCUITS_FAST}"
+    )
+    print(
+        f"Fast fit mode: {FAST_FIT_MODE}, fixed train seed: {RB_TRAIN_SEED if USE_FIXED_TRAIN_SEED else None}"
+    )
+
+    config = meta_dict_to_config_1Q(meta_dict)
+    calib_params = {}
+
+    # Single-shot calibration.
+    if RUN_SS_CAL:
+        print("Running single shot calibration...")
+        SS = SingleShot1Q(
+            qubit,
+            SS_SHOTS,
+            meta_dict=meta_dict,
+            outer_folder=outer_folder,
+            path=qubit,
+            suffix="SS_Cal",
+            config=config,
+        )
+        calib_params = SS.calib_params
+        meta_dict["read_theta"] = SS.calib_params["read_theta"]
+        config = meta_dict_to_config_1Q(meta_dict)
+        print(SS.calib_params)
+
+    long_rb_experiment_dict = {
+        "RB": {
+            "circuit_lengths": LONG_RB_LENGTHS,
+            "num_circuits": NUM_CIRCUITS_LONG,
+            "shots": SHOTS_LONG,
+        }
+    }
+
+    # Baseline fast metric with zero correction.
+    zero_x = np.zeros(n_cma_params)
+    print("\nRunning baseline fast RB metric for zero correction...")
+    baseline_feedback, baseline_probs = run_rb_fast_feedback_physical_x(
+        x=zero_x,
+        qubit=qubit,
+        x90_amp=x90_amp,
+        leak_freqs_mhz=leak_freqs_mhz,
+        meta_dict=meta_dict,
+        fast_circuit_depths=fast_circuit_depths,
+        shots=SHOTS_FAST,
+        num_circuits=NUM_CIRCUITS_FAST,
+        calib_params=calib_params,
+        outer_folder=crab_run_dir,
+        iteration_label="baseline_fast",
+        rb_seed=RB_TRAIN_SEED if USE_FIXED_TRAIN_SEED else None,
+    )
+    baseline_cost = 1.0 - baseline_feedback
+    print(
+        f"Baseline fast feedback metric: {baseline_feedback:.8f}  cost={baseline_cost:.8e}"
+    )
+    print(f"Baseline fast return probs: {baseline_probs}")
+
+    print("\nRunning baseline long RB for zero correction...")
+    baseline_long_fidelity, _ = run_rb_fidelity_physical_x(
+        x=zero_x,
+        qubit=qubit,
+        x90_amp=x90_amp,
+        leak_freqs_mhz=leak_freqs_mhz,
+        meta_dict=meta_dict,
+        experiment_dict=long_rb_experiment_dict,
+        calib_params=calib_params,
+        outer_folder=crab_run_dir,
+        iteration_label="baseline_long",
+        crab_dir=crab_run_dir,
+        rb_seed=None,
+    )
+    print(f"Baseline long RB gate_fidelity = {baseline_long_fidelity:.8f}")
+
+    evaluate, n_cma_params_check = make_evaluate_fast_physical(
+        qubit=qubit,
+        x90_amp=x90_amp,
+        leak_freqs_mhz=leak_freqs_mhz,
+        meta_dict=meta_dict,
+        fast_circuit_depths=fast_circuit_depths,
+        shots=SHOTS_FAST,
+        num_circuits=NUM_CIRCUITS_FAST,
+        calib_params=calib_params,
+        outer_folder=crab_run_dir,
+    )
+    assert n_cma_params_check == n_cma_params
+
+    es = cma.CMAEvolutionStrategy(
+        np.zeros(n_cma_params),
+        CMA_SIGMA0,
+        {
+            "maxiter": CMA_MAXITER,
+            "popsize": int(4 + 3 * np.log(n_cma_params)),
+            "tolfun": CMA_TOLFUN,
+            "tolx": CMA_TOLX,
+            "verbose": 3,
+        },
+    )
+
+    history = []
+    best_so_far_history = []
+    sigma_history = []
+    checkpoint_long_fids = []
+    zero_long_fids = []
+    iteration = 0
+
+    fig, ax = plt.subplots(figsize=(10, 6))
+
+    def run_long_rb_checkpoint(iteration_num, label):
+        """RB-only checkpoint for xbest, optionally also current zero."""
+        best_x = es.result.xbest
+
+        print(f"\n[{label}] Running long RB checkpoint for current xbest...")
+        print_physical_params(label, best_x, x90_amp, leak_freqs_mhz)
+        ck_fidelity, _ = run_rb_fidelity_physical_x(
+            x=best_x,
+            qubit=qubit,
+            x90_amp=x90_amp,
+            leak_freqs_mhz=leak_freqs_mhz,
+            meta_dict=meta_dict,
+            experiment_dict=long_rb_experiment_dict,
+            calib_params=calib_params,
+            outer_folder=crab_run_dir,
+            iteration_label=label,
+            crab_dir=crab_run_dir,
+            rb_seed=None,
+        )
+        print(f"[{label}] xbest long RB gate_fidelity = {ck_fidelity:.8f}")
+        checkpoint_long_fids.append((iteration_num, ck_fidelity))
+
+        if RUN_ZERO_LONG_RB_AT_CHECKPOINT:
+            zero_label = f"{label}_zero"
+            print(f"\n[{zero_label}] Running long RB checkpoint for zero correction...")
+            zero_fidelity, _ = run_rb_fidelity_physical_x(
+                x=zero_x,
+                qubit=qubit,
+                x90_amp=x90_amp,
+                leak_freqs_mhz=leak_freqs_mhz,
+                meta_dict=meta_dict,
+                experiment_dict=long_rb_experiment_dict,
+                calib_params=calib_params,
+                outer_folder=crab_run_dir,
+                iteration_label=zero_label,
+                crab_dir=crab_run_dir,
+                rb_seed=None,
+            )
+            print(f"[{zero_label}] zero long RB gate_fidelity = {zero_fidelity:.8f}")
+            print(
+                f"[{label}] xbest - zero long RB = {ck_fidelity - zero_fidelity:+.3e}"
+            )
+            zero_long_fids.append((iteration_num, zero_fidelity))
+
+        return ck_fidelity
+
+    # CMA loop.
+    while not es.stop():
+        solutions = es.ask()
+        costs = [evaluate(x) for x in solutions]
+        es.tell(solutions, costs)
+        es.disp()
+
+        generation_best = float(np.min(costs))
+        history.append(generation_best)
+        best_so_far_history.append(float(np.min(history)))
+        sigma_history.append(float(es.sigma))
+        iteration += 1
+
+        print(f"\n{'─' * 72}")
+        print(f"  History — generation best and overall best={es.result.fbest:.6e}")
+        for i, (h, bsf, sig) in enumerate(
+            zip(history, best_so_far_history, sigma_history)
+        ):
+            marker = " ◄" if h == min(history) else ""
+            print(
+                f"  Gen {i + 1:3d}: gen_best={h:.6e}  best_so_far={bsf:.6e}  "
+                f"feedback={1.0 - bsf:.8f}  sigma={sig:.4f}{marker}"
+            )
+        print(f"{'─' * 72}\n")
+
+        # Update convergence plot.
+        ax.clear()
+        ax.plot(
+            history, marker="o", markersize=3, alpha=0.45, label="best in generation"
+        )
+        ax.plot(best_so_far_history, marker="o", markersize=3, label="best so far")
+        ax.axhline(baseline_cost, color="gray", linestyle="--", label="baseline fast")
+        ax.set_xlabel("CMA-ES iteration")
+        ax.set_ylabel("Best cost (1 − fast RB feedback metric)")
+        ax.set_yscale("log")
+        ax.set_title(f"Physical-basis CRAB-OC — {qubit}  [iter {iteration}]")
+        ax.legend()
+        ax.grid()
+        fig.tight_layout()
+        fig.savefig(os.path.join(crab_run_dir, f"cma_convergence_physical_{qubit}.png"))
+
+        if CHECKPOINT_EVERY and iteration % CHECKPOINT_EVERY == 0:
+            run_long_rb_checkpoint(iteration, f"iter{iteration:04d}")
+
+    plt.close(fig)
+
+    # Final results.
+    best_x = es.result.xbest
+    best_fast_cost = float(es.result.fbest)
+    best_fast_feedback = 1.0 - best_fast_cost
+
+    print("\nFinal best parameters:")
+    print_physical_params("final", best_x, x90_amp, leak_freqs_mhz)
+    print(f"Baseline fast feedback: {baseline_feedback:.8f} cost={baseline_cost:.8e}")
+    print(f"Best fast feedback    : {best_fast_feedback:.8f} cost={best_fast_cost:.8e}")
+    print(f"Fast feedback improvement: {best_fast_feedback - baseline_feedback:+.3e}")
+    print(f"Baseline long RB fidelity: {baseline_long_fidelity:.8f}")
+
+    final_long_fidelity = run_long_rb_checkpoint(iteration, "final")
+    print(f"Final xbest long RB fidelity: {final_long_fidelity:.8f}")
+    print(
+        f"Final xbest - baseline_long: {final_long_fidelity - baseline_long_fidelity:+.3e}"
+    )
+
+    # Save best parameters and correction waveforms.
+    best_config, best_wfs = build_config_with_physical_x(
+        best_x,
+        meta_dict,
+        qubit,
+        x90_amp,
+        leak_freqs_mhz,
+    )
+
+    np.savez(
+        os.path.join(crab_run_dir, f"best_physical_crab_params_{qubit}.npz"),
+        best_x=best_x,
+        leak_freqs_mhz=leak_freqs_mhz,
+        baseline_fast_feedback=baseline_feedback,
+        baseline_fast_cost=baseline_cost,
+        best_fast_feedback=best_fast_feedback,
+        best_fast_cost=best_fast_cost,
+        baseline_long_fidelity=baseline_long_fidelity,
+        final_long_fidelity=final_long_fidelity,
+        history=np.asarray(history),
+        best_so_far_history=np.asarray(best_so_far_history),
+        sigma_history=np.asarray(sigma_history),
+        checkpoint_long_fids=np.asarray(checkpoint_long_fids, dtype=float),
+        zero_long_fids=np.asarray(zero_long_fids, dtype=float),
+        crab_wf_I_X=np.asarray(best_wfs[0]),
+        crab_wf_Q_X=np.asarray(best_wfs[1]),
+        crab_wf_I_Y=np.asarray(best_wfs[2]),
+        crab_wf_Q_Y=np.asarray(best_wfs[3]),
+    )
+
+    print(
+        f"Saved best physical-basis parameters to {crab_run_dir}/best_physical_crab_params_{qubit}.npz"
+    )

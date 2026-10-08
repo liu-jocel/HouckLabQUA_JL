@@ -1,0 +1,501 @@
+
+ 
+Initialfit
+[[Model]]
+    (Model(gaussian2d, prefix='g0_') + Model(gaussian2d, prefix='g1_'))
+[[Fit Statistics]]
+    # fitting method   = least_squares
+    # function evals   = 168
+    # data points      = 196
+    # variables        = 7
+    chi-square         = 414.232497
+    reduced chi-square = 2.19170633
+    Akaike info crit   = 160.669298
+    Bayesian info crit = 183.616100
+    R-squared          = -0.62084037
+##  Warning: uncertainties could not be estimated:
+[[Variables]]
+    g0_amplitude:  15.2764515 (init = 250)
+    g0_centerx:    0.01089517 (init = -8.163836e-05)
+    g0_centery:   -0.05162662 (init = -8.163836e-05)
+    g0_sigmax:     0.00101112 == 'sigma'
+    g0_sigmay:     0.00101112 == 'sigma'
+    g1_amplitude:  0.77578078 (init = 250)
+    g1_centerx:   -0.01822532 (init = -8.163771e-05)
+    g1_centery:   -0.01887203 (init = -8.163771e-05)
+    g1_sigmax:     0.00101112 == 'sigma'
+    g1_sigmay:     0.00101112 == 'sigma'
+    g0_fwhmx:      0.00238100 == '2.3548200*g0_sigmax'
+    g0_fwhmy:      0.00238100 == '2.3548200*g0_sigmay'
+    g0_height:     2378148.26 == '0.1591549*g0_amplitude/(max(1e-15, g0_sigmax)*max(1e-15, g0_sigmay))'
+    g1_fwhmx:      0.00238100 == '2.3548200*g1_sigmax'
+    g1_fwhmy:      0.00238100 == '2.3548200*g1_sigmay'
+    g1_height:     120768.996 == '0.1591549*g1_amplitude/(max(1e-15, g1_sigmax)*max(1e-15, g1_sigmay))'
+    sigma:         0.00101112 (init = 6.910505e-06)
+ 
+Finalfit
+[[Model]]
+    (Model(gaussian2d, prefix='g0_') + Model(gaussian2d, prefix='g1_'))
+[[Fit Statistics]]
+    # fitting method   = least_squares
+    # function evals   = 3
+    # data points      = 4
+    # variables        = 2
+    chi-square         = 0.50000000
+    reduced chi-square = 0.25000000
+    Akaike info crit   = -4.31776617
+    Bayesian info crit = -5.54517744
+    R-squared          = -0.33333333
+##  Warning: uncertainties could not be estimated:
+    g0_amplitude:  at initial value
+    g1_amplitude:  at initial value
+[[Variables]]
+    g0_amplitude:  0.50000000 (init = 0.5)
+    g0_centerx:    0.01089517 (fixed)
+    g0_centery:   -0.05162662 (fixed)
+    g0_sigmax:     0.001011118 (fixed)
+    g0_sigmay:     0.001011118 (fixed)
+    g1_amplitude:  0.50000000 (init = 0.5)
+    g1_centerx:   -0.01822532 (fixed)
+    g1_centery:   -0.01887203 (fixed)
+    g1_sigmax:     0.001011118 (fixed)
+    g1_sigmay:     0.001011118 (fixed)
+    g0_fwhmx:      0.00238100 == '2.3548200*g0_sigmax'
+    g0_fwhmy:      0.00238100 == '2.3548200*g0_sigmay'
+    g0_height:     77837.0636 == '0.1591549*g0_amplitude/(max(1e-15, g0_sigmax)*max(1e-15, g0_sigmay))'
+    g1_fwhmx:      0.00238100 == '2.3548200*g1_sigmax'
+    g1_fwhmy:      0.00238100 == '2.3548200*g1_sigmay'
+    g1_height:     77837.0636 == '0.1591549*g1_amplitude/(max(1e-15, g1_sigmax)*max(1e-15, g1_sigmay))'
+    sigma:         0.001011118 (fixed)
+ 
+Initialfit
+[[Model]]
+    (Model(gaussian2d, prefix='g0_') + Model(gaussian2d, prefix='g1_'))
+[[Fit Statistics]]
+    # fitting method   = least_squares
+    # function evals   = 430
+    # data points      = 256
+    # variables        = 7
+    chi-square         = 343.940474
+    reduced chi-square = 1.38128704
+    Akaike info crit   = 89.5945363
+    Bayesian info crit = 114.410778
+    R-squared          = -0.23064883
+[[Variables]]
+    g0_amplitude:  1.62241105 +/- 18537669.5 (1142600051.36%) (init = 250)
+    g0_centerx:    0.01078264 +/- 11842747.5 (109831587550.35%) (init = -7.907618e-05)
+    g0_centery:   -0.18944547 +/- 12478373.1 (6586788908.73%) (init = -7.907618e-05)
+    g0_sigmax:     1.07983358 +/- 1860136.55 (172261410.43%) == 'sigma'
+    g0_sigmay:     1.07983358 +/- 1860136.55 (172261410.43%) == 'sigma'
+    g1_amplitude:  3.20091557 +/- 23852975.2 (745192264.51%) (init = 250)
+    g1_centerx:    0.07511649 +/- 6638042.19 (8836997878.12%) (init = -7.907669e-05)
+    g1_centery:   -0.49996354 +/- 8169626.33 (1634044417.81%) (init = -7.907669e-05)
+    g1_sigmax:     1.07983358 +/- 1860136.55 (172261410.43%) == 'sigma'
+    g1_sigmay:     1.07983358 +/- 1860136.55 (172261410.43%) == 'sigma'
+    g0_fwhmx:      2.54281371 +/- 4380286.74 (172261409.60%) == '2.3548200*g0_sigmax'
+    g0_fwhmy:      2.54281371 +/- 4380286.74 (172261409.60%) == '2.3548200*g0_sigmay'
+    g0_height:     0.22144570 +/- 2535535.07 (1144991784.97%) == '0.1591549*g0_amplitude/(max(1e-15, g0_sigmax)*max(1e-15, g0_sigmay))'
+    g1_fwhmx:      2.54281371 +/- 4380286.74 (172261409.60%) == '2.3548200*g1_sigmax'
+    g1_fwhmy:      2.54281371 +/- 4380286.74 (172261409.60%) == '2.3548200*g1_sigmay'
+    g1_height:     0.43689852 +/- 2514010.98 (575422175.50%) == '0.1591549*g1_amplitude/(max(1e-15, g1_sigmax)*max(1e-15, g1_sigmay))'
+    sigma:         1.07983358 +/- 1857671.95 (172033171.56%) (init = 6.739792e-06)
+[[Correlations]] (unreported correlations are < 0.100)
+    C(g0_centerx, g1_centerx)     = -0.9972
+    C(g0_centery, g1_centery)     = -0.9475
+    C(g1_amplitude, sigma)        = +0.6745
+    C(g0_amplitude, g1_amplitude) = -0.5917
+    C(g0_amplitude, g1_centery)   = -0.3905
+    C(g1_centery, sigma)          = -0.2991
+    C(g0_centery, g1_amplitude)   = +0.2181
+    C(g1_amplitude, g1_centery)   = -0.2054
+    C(g0_amplitude, g1_centerx)   = +0.1451
+    C(g0_amplitude, sigma)        = +0.1383
+    C(g0_amplitude, g0_centery)   = +0.1378
+    C(g0_centerx, g0_centery)     = +0.1228
+    C(g0_centery, g1_centerx)     = -0.1005
+ 
+Finalfit
+[[Model]]
+    (Model(gaussian2d, prefix='g0_') + Model(gaussian2d, prefix='g1_'))
+[[Fit Statistics]]
+    # fitting method   = least_squares
+    # function evals   = 18
+    # data points      = 4
+    # variables        = 2
+    chi-square         = 0.43477337
+    reduced chi-square = 0.21738669
+    Akaike info crit   = -4.87689891
+    Bayesian info crit = -6.10431019
+    R-squared          = -0.08377219
+[[Variables]]
+    g0_amplitude:  1.06407322 +/- 28.8732984 (2713.47%) (init = 0.5)
+    g0_centerx:    0.01078264 (fixed)
+    g0_centery:   -0.1894455 (fixed)
+    g0_sigmax:     1.079834 (fixed)
+    g0_sigmay:     1.079834 (fixed)
+    g1_amplitude:  1.4267e-14 +/- 31.1697995 (218471439194701664.00%) (init = 0.5)
+    g1_centerx:    0.07511649 (fixed)
+    g1_centery:   -0.4999635 (fixed)
+    g1_sigmax:     1.079834 (fixed)
+    g1_sigmay:     1.079834 (fixed)
+    g0_fwhmx:      2.54281371 +/- 0.00000000 (0.00%) == '2.3548200*g0_sigmax'
+    g0_fwhmy:      2.54281371 +/- 0.00000000 (0.00%) == '2.3548200*g0_sigmay'
+    g0_height:     0.14523720 +/- 3.94096660 (2713.47%) == '0.1591549*g0_amplitude/(max(1e-15, g0_sigmax)*max(1e-15, g0_sigmay))'
+    g1_fwhmx:      2.54281371 +/- 0.00000000 (0.00%) == '2.3548200*g1_sigmax'
+    g1_fwhmy:      2.54281371 +/- 0.00000000 (0.00%) == '2.3548200*g1_sigmay'
+    g1_height:     1.9474e-15 +/- 4.25442003 (218471438487145888.00%) == '0.1591549*g1_amplitude/(max(1e-15, g1_sigmax)*max(1e-15, g1_sigmay))'
+    sigma:         1.079834 (fixed)
+[[Correlations]] (unreported correlations are < 0.100)
+    C(g0_amplitude, g1_amplitude) = -0.9977
+ 
+confidence intervals
+               99.73%  95.45%  68.27%  _BEST_  68.27%  95.45%  99.73%
+ g0_amplitude:    -inf    -inf    -inf   1.064  +2.567  +8.793 +37.310
+ g1_amplitude:    -inf    -inf    -inf   0.000  +3.810    +inf    +inf
+ 
+Initialfit
+[[Model]]
+    (Model(gaussian2d, prefix='g0_') + Model(gaussian2d, prefix='g1_'))
+[[Fit Statistics]]
+    # fitting method   = least_squares
+    # function evals   = 344
+    # data points      = 625
+    # variables        = 7
+    chi-square         = 227.694221
+    reduced chi-square = 0.36843725
+    Akaike info crit   = -617.092536
+    Bayesian info crit = -586.028274
+    R-squared          = 0.89724997
+[[Variables]]
+    g0_amplitude:  7.9751e-08 +/- 1.8385e-09 (2.31%) (init = 1000)
+    g0_centerx:   -1.2613e-04 +/- 6.3878e-07 (0.51%) (init = -8.440841e-05)
+    g0_centery:   -4.9218e-05 +/- 5.7161e-07 (1.16%) (init = -8.440841e-05)
+    g0_sigmax:     2.3491e-05 +/- 2.4420e-07 (1.04%) == 'sigma'
+    g0_sigmay:     2.3491e-05 +/- 2.4420e-07 (1.04%) == 'sigma'
+    g1_amplitude:  8.1432e-08 +/- 1.8576e-09 (2.28%) (init = 1000)
+    g1_centerx:   -4.3891e-05 +/- 6.2367e-07 (1.42%) (init = -8.440793e-05)
+    g1_centery:   -6.4942e-05 +/- 5.7930e-07 (0.89%) (init = -8.440793e-05)
+    g1_sigmax:     2.3491e-05 +/- 2.4420e-07 (1.04%) == 'sigma'
+    g1_sigmay:     2.3491e-05 +/- 2.4420e-07 (1.04%) == 'sigma'
+    g0_fwhmx:      5.5318e-05 +/- 5.7504e-07 (1.04%) == '2.3548200*g0_sigmax'
+    g0_fwhmy:      5.5318e-05 +/- 5.7504e-07 (1.04%) == '2.3548200*g0_sigmay'
+    g0_height:     23.0005219 +/- 0.67577470 (2.94%) == '0.1591549*g0_amplitude/(max(1e-15, g0_sigmax)*max(1e-15, g0_sigmay))'
+    g1_fwhmx:      5.5318e-05 +/- 5.7504e-07 (1.04%) == '2.3548200*g1_sigmax'
+    g1_fwhmy:      5.5318e-05 +/- 5.7504e-07 (1.04%) == '2.3548200*g1_sigmay'
+    g1_height:     23.4852851 +/- 0.67758759 (2.89%) == '0.1591549*g1_amplitude/(max(1e-15, g1_sigmax)*max(1e-15, g1_sigmay))'
+    sigma:         2.3491e-05 +/- 2.4420e-07 (1.04%) (init = 7.313825e-06)
+[[Correlations]] (unreported correlations are < 0.100)
+    C(g0_centerx, g1_centerx)   = +0.2236
+    C(g0_centerx, g1_amplitude) = -0.1408
+    C(g0_amplitude, g1_centerx) = +0.1384
+    C(g1_amplitude, sigma)      = +0.1267
+    C(g0_amplitude, sigma)      = +0.1048
+    C(g1_amplitude, g1_centerx) = -0.1044
+    C(g0_amplitude, g0_centerx) = +0.1029
+ 
+confidence intervals
+               99.73%  95.45%  68.27%  _BEST_  68.27%  95.45%  99.73%
+ g0_amplitude:  -0.000  -0.000  -0.000   0.000  +0.000  +0.000  +0.000
+ g0_centerx  :  -0.000  -0.000  -0.000  -0.000  +0.000  +0.000  +0.000
+ g0_centery  :  -0.000  -0.000  -0.000  -0.000  +0.000  +0.000  +0.000
+ g1_amplitude:  -0.000  -0.000  -0.000   0.000  +0.000  +0.000  +0.000
+ g1_centerx  :  -0.000  -0.000  -0.000  -0.000  +0.000  +0.000  +0.000
+ g1_centery  :  -0.000  -0.000  -0.000  -0.000  +0.000  +0.000  +0.000
+ sigma       :  -0.000  -0.000  -0.000   0.000  +0.000  +0.000  +0.000
+ 
+Finalfit
+[[Model]]
+    (Model(gaussian2d, prefix='g0_') + Model(gaussian2d, prefix='g1_'))
+[[Fit Statistics]]
+    # fitting method   = least_squares
+    # function evals   = 123
+    # data points      = 576
+    # variables        = 2
+    chi-square         = 224.108293
+    reduced chi-square = 0.39043257
+    Akaike info crit   = -539.731486
+    Bayesian info crit = -531.019271
+    R-squared          = 0.73222965
+[[Variables]]
+    g0_amplitude:  3.1033e-08 +/- 8.6064e-10 (2.77%) (init = 475)
+    g0_centerx:   -0.0001261269 (fixed)
+    g0_centery:   -4.921796e-05 (fixed)
+    g0_sigmax:     2.34914e-05 (fixed)
+    g0_sigmay:     2.34914e-05 (fixed)
+    g1_amplitude:  2.8036e-22 +/- 3.3365e-09 (1190067020231496.25%) (init = 475)
+    g1_centerx:   -4.389067e-05 (fixed)
+    g1_centery:   -6.494189e-05 (fixed)
+    g1_sigmax:     2.34914e-05 (fixed)
+    g1_sigmay:     2.34914e-05 (fixed)
+    g0_fwhmx:      5.5318e-05 +/- 0.00000000 (0.00%) == '2.3548200*g0_sigmax'
+    g0_fwhmy:      5.5318e-05 +/- 0.00000000 (0.00%) == '2.3548200*g0_sigmay'
+    g0_height:     8.94993555 +/- 0.24821306 (2.77%) == '0.1591549*g0_amplitude/(max(1e-15, g0_sigmax)*max(1e-15, g0_sigmay))'
+    g1_fwhmx:      5.5318e-05 +/- 0.00000000 (0.00%) == '2.3548200*g1_sigmax'
+    g1_fwhmy:      5.5318e-05 +/- 0.00000000 (0.00%) == '2.3548200*g1_sigmay'
+    g1_height:     8.0858e-14 +/- 0.96226528 (1190067017827360.25%) == '0.1591549*g1_amplitude/(max(1e-15, g1_sigmax)*max(1e-15, g1_sigmay))'
+    sigma:         2.34914e-05 (fixed)
+[[Correlations]] (unreported correlations are < 0.100)
+    C(g0_amplitude, g1_amplitude) = -0.2787
+ 
+confidence intervals
+               99.73%  95.45%  68.27%  _BEST_  68.27%  95.45%  99.73%
+ g0_amplitude:  -0.000  -0.000  -0.000   0.000  +0.000  +0.000  +0.000
+ g1_amplitude:    -inf    -inf    -inf   0.000  +0.000  +0.000  +0.000
+ 
+Initialfit
+[[Model]]
+    (Model(gaussian2d, prefix='g0_') + Model(gaussian2d, prefix='g1_'))
+[[Fit Statistics]]
+    # fitting method   = least_squares
+    # function evals   = 347
+    # data points      = 625
+    # variables        = 7
+    chi-square         = 1550.16146
+    reduced chi-square = 2.50835188
+    Akaike info crit   = 581.726702
+    Bayesian info crit = 612.790963
+    R-squared          = -0.26216334
+[[Variables]]
+    g0_amplitude:  26.1822278 +/- 1.6083e+08 (614283832.56%) (init = 1000)
+    g0_centerx:    0.43986712 +/- 7237609.20 (1645408086.39%) (init = -8.129998e-05)
+    g0_centery:   -0.49534831 +/- 6088577.98 (1229150850.36%) (init = -8.129998e-05)
+    g0_sigmax:     3.49671309 +/- 3161348.58 (90409149.95%) == 'sigma'
+    g0_sigmay:     3.49671309 +/- 3161348.58 (90409149.95%) == 'sigma'
+    g1_amplitude:  30.1354187 +/- 1.7148e+08 (569025375.43%) (init = 1000)
+    g1_centerx:    0.45732623 +/- 6326150.66 (1383290589.50%) (init = -8.130044e-05)
+    g1_centery:   -0.49979210 +/- 5637280.48 (1127925081.04%) (init = -8.130044e-05)
+    g1_sigmax:     3.49671309 +/- 3161348.58 (90409149.95%) == 'sigma'
+    g1_sigmay:     3.49671309 +/- 3161348.58 (90409149.95%) == 'sigma'
+    g0_fwhmx:      8.23412991 +/- 7444406.85 (90409149.89%) == '2.3548200*g0_sigmax'
+    g0_fwhmy:      8.23412991 +/- 7444406.85 (90409149.89%) == '2.3548200*g0_sigmay'
+    g0_height:     0.34080551 +/- 2017496.03 (591978692.50%) == '0.1591549*g0_amplitude/(max(1e-15, g0_sigmax)*max(1e-15, g0_sigmay))'
+    g1_fwhmx:      8.23412991 +/- 7444406.85 (90409149.89%) == '2.3548200*g1_sigmax'
+    g1_fwhmy:      8.23412991 +/- 7444406.85 (90409149.89%) == '2.3548200*g1_sigmay'
+    g1_height:     0.39226291 +/- 2089726.42 (532736172.55%) == '0.1591549*g1_amplitude/(max(1e-15, g1_sigmax)*max(1e-15, g1_sigmay))'
+    sigma:         3.49671309 +/- 3161336.27 (90408797.96%) (init = 7.283874e-06)
+[[Correlations]] (unreported correlations are < 0.100)
+    C(g0_centerx, g1_centerx)     = -0.9716
+    C(g0_centery, g1_centery)     = -0.9548
+    C(g0_amplitude, g1_amplitude) = -0.8383
+    C(g1_amplitude, sigma)        = +0.4503
+    C(g1_centery, sigma)          = -0.3470
+    C(g1_amplitude, g1_centery)   = -0.1663
+    C(g0_amplitude, sigma)        = +0.1648
+    C(g1_centerx, sigma)          = +0.1416
+ 
+confidence intervals
+               99.73%  95.45%  68.27%  _BEST_  68.27%  95.45%  99.73%
+ g0_amplitude:    -inf    -inf    -inf  26.182    +inf    +inf    +inf
+ g0_centerx  :    -inf    -inf    -inf   0.440    +inf    +inf    +inf
+ g0_centery  :    -inf    -inf    -inf  -0.495    +inf    +inf    +inf
+ g1_amplitude:    -inf    -inf    -inf  30.135    +inf    +inf    +inf
+ g1_centerx  :    -inf    -inf    -inf   0.457    +inf    +inf    +inf
+ g1_centery  :    -inf    -inf    -inf  -0.500    +inf    +inf    +inf
+ sigma       :    -inf    -inf    -inf   3.497    +inf    +inf    +inf
+ 
+Finalfit
+[[Model]]
+    (Model(gaussian2d, prefix='g0_') + Model(gaussian2d, prefix='g1_'))
+[[Fit Statistics]]
+    # fitting method   = least_squares
+    # function evals   = 21
+    # data points      = 4
+    # variables        = 2
+    chi-square         = 0.42874343
+    reduced chi-square = 0.21437171
+    Akaike info crit   = -4.93276390
+    Bayesian info crit = -6.16017518
+    R-squared          = -0.06185155
+[[Variables]]
+    g0_amplitude:  3.0412e-05 +/- 51216.3060 (168406666430.82%) (init = 0.5)
+    g0_centerx:    0.4398671 (fixed)
+    g0_centery:   -0.4953483 (fixed)
+    g0_sigmax:     3.496713 (fixed)
+    g0_sigmay:     3.496713 (fixed)
+    g1_amplitude:  11.2224915 +/- 51259.8520 (456760.00%) (init = 0.5)
+    g1_centerx:    0.4573262 (fixed)
+    g1_centery:   -0.4997921 (fixed)
+    g1_sigmax:     3.496713 (fixed)
+    g1_sigmay:     3.496713 (fixed)
+    g0_fwhmx:      8.23412991 +/- 0.00000000 (0.00%) == '2.3548200*g0_sigmax'
+    g0_fwhmy:      8.23412991 +/- 0.00000000 (0.00%) == '2.3548200*g0_sigmay'
+    g0_height:     3.9587e-07 +/- 666.665942 (168406666807.38%) == '0.1591549*g0_amplitude/(max(1e-15, g0_sigmax)*max(1e-15, g0_sigmay))'
+    g1_fwhmx:      8.23412991 +/- 0.00000000 (0.00%) == '2.3548200*g1_sigmax'
+    g1_fwhmy:      8.23412991 +/- 0.00000000 (0.00%) == '2.3548200*g1_sigmay'
+    g1_height:     0.14607951 +/- 667.232764 (456760.00%) == '0.1591549*g1_amplitude/(max(1e-15, g1_sigmax)*max(1e-15, g1_sigmay))'
+    sigma:         3.496713 (fixed)
+[[Correlations]] (unreported correlations are < 0.100)
+    C(g0_amplitude, g1_amplitude) = -1.0000
+ 
+Initialfit
+[[Model]]
+    (Model(gaussian2d, prefix='g0_') + Model(gaussian2d, prefix='g1_'))
+[[Fit Statistics]]
+    # fitting method   = least_squares
+    # function evals   = 16
+    # data points      = 625
+    # variables        = 7
+    chi-square         = 1747.79321
+    reduced chi-square = 2.82814435
+    Akaike info crit   = 656.723498
+    Bayesian info crit = 687.787759
+    R-squared          = -0.41748206
+##  Warning: uncertainties could not be estimated:
+[[Variables]]
+    g0_amplitude:  593.117787 +/-        nan (nan%) (init = 1000)
+    g0_centerx:    1.6105e-04 +/-        nan (nan%) (init = -8.333346e-05)
+    g0_centery:   -1.2743e-04 +/- 5.8669e+29 (460397734755888220420415380554514432.00%) (init = -8.333346e-05)
+    g0_sigmax:     9.3259e-06 +/- 0.00000000 (0.00%) == 'sigma'
+    g0_sigmay:     9.3259e-06 +/- 0.00000000 (0.00%) == 'sigma'
+    g1_amplitude:  593.118422 +/- 1.0263e+29 (17303588356148757751008329728.00%) (init = 1000)
+    g1_centerx:   -3.2737e-04 +/- 1.3566e+20 (41440621135329229136723968.00%) (init = -8.333294e-05)
+    g1_centery:   -3.8839e-05 +/- 4.2374e+14 (1091025132427966676992.00%) (init = -8.333294e-05)
+    g1_sigmax:     9.3259e-06 +/- 0.00000000 (0.00%) == 'sigma'
+    g1_sigmay:     9.3259e-06 +/- 0.00000000 (0.00%) == 'sigma'
+    g0_fwhmx:      2.1961e-05 +/- 0.00000000 (0.00%) == '2.3548200*g0_sigmax'
+    g0_fwhmy:      2.1961e-05 +/- 0.00000000 (0.00%) == '2.3548200*g0_sigmay'
+    g0_height:     1.0854e+12 +/- 0.00000000 (0.00%) == '0.1591549*g0_amplitude/(max(1e-15, g0_sigmax)*max(1e-15, g0_sigmay))'
+    g1_fwhmx:      2.1961e-05 +/- 0.00000000 (0.00%) == '2.3548200*g1_sigmax'
+    g1_fwhmy:      2.1961e-05 +/- 0.00000000 (0.00%) == '2.3548200*g1_sigmay'
+    g1_height:     1.0854e+12 +/- 0.00000000 (0.00%) == '0.1591549*g1_amplitude/(max(1e-15, g1_sigmax)*max(1e-15, g1_sigmay))'
+    sigma:         9.3259e-06 +/- 2.9693e+14 (3183904812657858314240.00%) (init = 7.493757e-06)
+[[Correlations]] (unreported correlations are < 0.100)
+    C(g0_centery, g1_centerx)   = -344194051700.7690
+    C(g0_centery, g1_amplitude) = +344151427855.4941
+    C(g0_centery, g1_centery)   = -989426627.5905
+    C(g0_centery, sigma)        = -932867600.6482
+    C(g1_amplitude, g1_centerx) = -1.0000
+    C(g1_centery, sigma)        = -0.4289
+ 
+confidence intervals
+               99.73%  95.45%  68.27%  _BEST_  68.27%  95.45%  99.73%
+ g0_amplitude:    -inf    -inf    -inf 593.118    +inf    +inf    +inf
+ g0_centerx  :    -inf    -inf    -inf   0.000    +inf    +inf    +inf
+ g0_centery  :    -inf    -inf    -inf  -0.000    +inf    +inf    +inf
+ g1_amplitude:    -inf    -inf    -inf 593.118    +inf    +inf    +inf
+ g1_centerx  :    -inf    -inf    -inf  -0.000    +inf    +inf    +inf
+ g1_centery  :    -inf    -inf    -inf  -0.000    +inf    +inf    +inf
+ sigma       :    -inf    -inf    -inf   0.000    +inf    +inf    +inf
+ 
+Initialfit
+[[Model]]
+    (Model(gaussian2d, prefix='g0_') + Model(gaussian2d, prefix='g1_'))
+[[Fit Statistics]]
+    # fitting method   = least_squares
+    # function evals   = 1820
+    # data points      = 576
+    # variables        = 7
+    chi-square         = 864.858034
+    reduced chi-square = 1.51996140
+    Akaike info crit   = 248.119641
+    Bayesian info crit = 278.612395
+    R-squared          = 0.39716196
+##  Warning: uncertainties could not be estimated:
+[[Variables]]
+    g0_amplitude:  0.00198499 (init = 1000)
+    g0_centerx:    0.39809151 (init = -8.081455e-05)
+    g0_centery:   -0.49803403 (init = -8.081455e-05)
+    g0_sigmax:     3.8988e-05 == 'sigma'
+    g0_sigmay:     3.8988e-05 == 'sigma'
+    g1_amplitude:  1.2275e-07 (init = 1000)
+    g1_centerx:   -7.6527e-05 (init = -8.081403e-05)
+    g1_centery:   -5.5893e-05 (init = -8.081403e-05)
+    g1_sigmax:     3.8988e-05 == 'sigma'
+    g1_sigmay:     3.8988e-05 == 'sigma'
+    g0_fwhmx:      9.1810e-05 == '2.3548200*g0_sigmax'
+    g0_fwhmy:      9.1810e-05 == '2.3548200*g0_sigmay'
+    g0_height:     207833.350 == '0.1591549*g0_amplitude/(max(1e-15, g0_sigmax)*max(1e-15, g0_sigmay))'
+    g1_fwhmx:      9.1810e-05 == '2.3548200*g1_sigmax'
+    g1_fwhmy:      9.1810e-05 == '2.3548200*g1_sigmay'
+    g1_height:     12.8519314 == '0.1591549*g1_amplitude/(max(1e-15, g1_sigmax)*max(1e-15, g1_sigmay))'
+    sigma:         3.8988e-05 (init = 7.585618e-06)
+ 
+Initialfit
+[[Model]]
+    (Model(gaussian2d, prefix='g0_') + Model(gaussian2d, prefix='g1_'))
+[[Fit Statistics]]
+    # fitting method   = least_squares
+    # function evals   = 340
+    # data points      = 576
+    # variables        = 7
+    chi-square         = 234.496785
+    reduced chi-square = 0.41212089
+    Akaike info crit   = -503.631492
+    Bayesian info crit = -473.138738
+    R-squared          = 0.88090554
+[[Variables]]
+    g0_amplitude:  7.5298e-08 +/- 1.9325e-09 (2.57%) (init = 1000)
+    g0_centerx:   -1.2650e-04 +/- 7.6439e-07 (0.60%) (init = -8.287602e-05)
+    g0_centery:   -5.2447e-05 +/- 6.7542e-07 (1.29%) (init = -8.287602e-05)
+    g0_sigmax:     2.4807e-05 +/- 2.7501e-07 (1.11%) == 'sigma'
+    g0_sigmay:     2.4807e-05 +/- 2.7501e-07 (1.11%) == 'sigma'
+    g1_amplitude:  8.3166e-08 +/- 2.0154e-09 (2.42%) (init = 1000)
+    g1_centerx:   -4.5152e-05 +/- 7.3243e-07 (1.62%) (init = -8.287555e-05)
+    g1_centery:   -6.7109e-05 +/- 6.3644e-07 (0.95%) (init = -8.287555e-05)
+    g1_sigmax:     2.4807e-05 +/- 2.7501e-07 (1.11%) == 'sigma'
+    g1_sigmay:     2.4807e-05 +/- 2.7501e-07 (1.11%) == 'sigma'
+    g0_fwhmx:      5.8415e-05 +/- 6.4761e-07 (1.11%) == '2.3548200*g0_sigmax'
+    g0_fwhmy:      5.8415e-05 +/- 6.4761e-07 (1.11%) == '2.3548200*g0_sigmay'
+    g0_height:     19.4745136 +/- 0.62634364 (3.22%) == '0.1591549*g0_amplitude/(max(1e-15, g0_sigmax)*max(1e-15, g0_sigmay))'
+    g1_fwhmx:      5.8415e-05 +/- 6.4761e-07 (1.11%) == '2.3548200*g1_sigmax'
+    g1_fwhmy:      5.8415e-05 +/- 6.4761e-07 (1.11%) == '2.3548200*g1_sigmay'
+    g1_height:     21.5093481 +/- 0.65412593 (3.04%) == '0.1591549*g1_amplitude/(max(1e-15, g1_sigmax)*max(1e-15, g1_sigmay))'
+    sigma:         2.4807e-05 +/- 2.7501e-07 (1.11%) (init = 7.001688e-06)
+[[Correlations]] (unreported correlations are < 0.100)
+    C(g0_centerx, g1_centerx)     = +0.2824
+    C(g0_amplitude, g1_centerx)   = +0.1913
+    C(g0_centerx, g1_amplitude)   = -0.1857
+    C(g0_amplitude, g0_centerx)   = +0.1515
+    C(g1_amplitude, g1_centerx)   = -0.1484
+    C(g1_amplitude, sigma)        = +0.1433
+    C(g0_amplitude, sigma)        = +0.1018
+    C(g0_amplitude, g1_amplitude) = -0.1008
+ 
+confidence intervals
+               99.73%  95.45%  68.27%  _BEST_  68.27%  95.45%  99.73%
+ g0_amplitude:  -0.000  -0.000  -0.000   0.000  +0.000  +0.000  +0.000
+ g0_centerx  :  -0.000  -0.000  -0.000  -0.000  +0.000  +0.000  +0.000
+ g0_centery  :  -0.000  -0.000  -0.000  -0.000  +0.000  +0.000  +0.000
+ g1_amplitude:  -0.000  -0.000  -0.000   0.000  +0.000  +0.000  +0.000
+ g1_centerx  :  -0.000  -0.000  -0.000  -0.000  +0.000  +0.000  +0.000
+ g1_centery  :  -0.000  -0.000  -0.000  -0.000  +0.000  +0.000  +0.000
+ sigma       :  -0.000  -0.000  -0.000   0.000  +0.000  +0.000  +0.000
+ 
+Finalfit
+[[Model]]
+    (Model(gaussian2d, prefix='g0_') + Model(gaussian2d, prefix='g1_'))
+[[Fit Statistics]]
+    # fitting method   = least_squares
+    # function evals   = 120
+    # data points      = 441
+    # variables        = 2
+    chi-square         = 282.241750
+    reduced chi-square = 0.64291970
+    Akaike info crit   = -192.809877
+    Bayesian info crit = -184.631788
+    R-squared          = 0.65558555
+[[Variables]]
+    g0_amplitude:  3.1778e-08 +/- 1.2904e-09 (4.06%) (init = 441.5)
+    g0_centerx:   -0.0001264966 (fixed)
+    g0_centery:   -5.244657e-05 (fixed)
+    g0_sigmax:     2.480673e-05 (fixed)
+    g0_sigmay:     2.480673e-05 (fixed)
+    g1_amplitude:  7.4665e-18 +/- 4.1052e-09 (54981768849.67%) (init = 441.5)
+    g1_centerx:   -4.515177e-05 (fixed)
+    g1_centery:   -6.710875e-05 (fixed)
+    g1_sigmax:     2.480673e-05 (fixed)
+    g1_sigmay:     2.480673e-05 (fixed)
+    g0_fwhmx:      5.8415e-05 +/- 0.00000000 (0.00%) == '2.3548200*g0_sigmax'
+    g0_fwhmy:      5.8415e-05 +/- 0.00000000 (0.00%) == '2.3548200*g0_sigmay'
+    g0_height:     8.21866635 +/- 0.33375028 (4.06%) == '0.1591549*g0_amplitude/(max(1e-15, g0_sigmax)*max(1e-15, g0_sigmay))'
+    g1_fwhmx:      5.8415e-05 +/- 0.00000000 (0.00%) == '2.3548200*g1_sigmax'
+    g1_fwhmy:      5.8415e-05 +/- 0.00000000 (0.00%) == '2.3548200*g1_sigmay'
+    g1_height:     1.9311e-09 +/- 1.06173197 (54981768688.03%) == '0.1591549*g1_amplitude/(max(1e-15, g1_sigmax)*max(1e-15, g1_sigmay))'
+    sigma:         2.480673e-05 (fixed)
+[[Correlations]] (unreported correlations are < 0.100)
+    C(g0_amplitude, g1_amplitude) = -0.3701
+ 
+confidence intervals
+               99.73%  95.45%  68.27%  _BEST_  68.27%  95.45%  99.73%
+ g0_amplitude:  -0.000  -0.000  -0.000   0.000  +0.000  +0.000  +0.000
+ g1_amplitude:    -inf    -inf    -inf   0.000  +0.000  +0.000  +0.000
